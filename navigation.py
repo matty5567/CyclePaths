@@ -78,9 +78,6 @@ def googleMapsSucks(startRoad, endRoad):
                 'weight': 9,
                 'fillOpacity':.3}
         
-    m = folium.Map(location=[50.916438, -1.397284],
-               min_zoom=7,
-               max_zoom=16)
 
     gdf = loadData()
 
@@ -123,21 +120,18 @@ def googleMapsSucks(startRoad, endRoad):
     gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(dijkstraWeightNodes) & gdf['EndNodeGraded'].isin(dijkstraWeightNodes)
 
     
-    # OS logo image
     logo_url = 'https://labs.os.uk/public/os-api-branding/v0.1.0/img/os-logo-maps.svg'
     
-    # Folium FloatImage plugin for displaying an image on the map
-    float_image = FloatImage(logo_url, bottom=1, left=1)
+    m = folium.Map(location=[50.916438, -1.397284],
+               min_zoom=7,
+               max_zoom=16)
 
-    # Add OS logo image to map
-    float_image.add_to(m)
     
     dijkstraLengthOverlay.add_to(m)
     dijkstraWeightOverlay.add_to(m)
 
     total_bbox = [[gdf.total_bounds[1], gdf.total_bounds[0]], [gdf.total_bounds[3], gdf.total_bounds[2]]]
 
-    # Return map object
     m.fit_bounds(total_bbox)
 
     
@@ -148,7 +142,7 @@ def googleMapsSucks(startRoad, endRoad):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser()
     parser.add_argument('start', type=str)
 
     parser.add_argument('end', type=str)
