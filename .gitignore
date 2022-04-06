@@ -1,6 +1,8 @@
+*.egg-info
 *.pq
 *.json
 venv
 *.png
 *.ipynb
 *.html
+__pycache__

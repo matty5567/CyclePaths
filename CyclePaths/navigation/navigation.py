@@ -9,6 +9,7 @@ from folium.plugins import FloatImage
 import argparse
 import webbrowser
 import os
+import sys
 
 
 OUTPUT_FILE = 'output_map.html'
@@ -81,6 +82,8 @@ def googleMapsSucks(startRoad, endRoad):
 
     gdf = loadData()
 
+    print("called with: ", startRoad, endRoad, file=sys.stderr)
+
     startNode = gdf[gdf['RoadName1'] == startRoad][['StartNodeGraded']].values[0].item()
     endNode   = gdf[gdf['RoadName1'] == endRoad][['EndNodeGraded']].values[0].item()
 
@@ -93,12 +96,15 @@ def googleMapsSucks(startRoad, endRoad):
     else:
         print('endpoints found, calculating route ....')
 
+    
+
+
 
     graph = nx.from_pandas_edgelist(gdf, 'StartNodeGraded', 'EndNodeGraded', ['weight', 'Length'])
 
         
-    dijkstraLengthNodes = nx.dijkstra_path(graph, startNode, endNode, 'Length')
-    dijkstraWeightNodes = nx.dijkstra_path(graph, startNode, endNode, 'weight')
+    dijkstraLengthNodes = nx.astar_path(graph, startNode, endNode, weight='Length')
+    dijkstraWeightNodes = nx.astar_path(graph, startNode, endNode, weight='weight')
 
     gdf['dijkstraLengthMask'] = gdf['StartNodeGraded'].isin(dijkstraLengthNodes) & gdf['EndNodeGraded'].isin(dijkstraLengthNodes)
     gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(dijkstraWeightNodes) & gdf['EndNodeGraded'].isin(dijkstraWeightNodes)
@@ -120,9 +126,8 @@ def googleMapsSucks(startRoad, endRoad):
     gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(dijkstraWeightNodes) & gdf['EndNodeGraded'].isin(dijkstraWeightNodes)
 
     
-    logo_url = 'https://labs.os.uk/public/os-api-branding/v0.1.0/img/os-logo-maps.svg'
     
-    m = folium.Map(location=[50.916438, -1.397284],
+    m = folium.Map(location=[51.508273,-0.121259],
                min_zoom=7,
                max_zoom=16)
 
@@ -134,10 +139,11 @@ def googleMapsSucks(startRoad, endRoad):
 
     m.fit_bounds(total_bbox)
 
+    return m
     
-    print(f'saving route from {startRoad} to {endRoad} to {OUTPUT_FILE}')
-    m.save(OUTPUT_FILE)
-    webbrowser.open('file://' + os.path.join(os.getcwd(), OUTPUT_FILE))
+    # print(f'saving route from {startRoad} to {endRoad} to {OUTPUT_FILE}')
+    # m.save(OUTPUT_FILE)
+    # webbrowser.open('file://' + os.path.join(os.getcwd(), OUTPUT_FILE))
 
 
 

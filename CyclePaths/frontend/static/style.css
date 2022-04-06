@@ -1,0 +1,25 @@
+#container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+
+  }
+
+  #search {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 100;
+    z-index: 100;
+  }
+
+
+  #map{
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
