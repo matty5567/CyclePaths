@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cycle Paths</title>
+    <link rel= "stylesheet" type= "text/css" href= "static/style.css">
+    <script src="{{url_for('static', filename='javascript.js')}}"></script>
+
+
+
+</head>
+<body>
+    <div id="container">
+
+
+                
+        <form id="search" autocomplete="off" onsubmit="return readRoadInput();">
+        
+            Start:
+            
+            <script>
+                customElements.define( 'data-list-1', class extends HTMLInputElement {
+                static get observedAttributes() { return [ 'source' ] }
+                async attributeChangedCallback( name, old, file ) {
+                    let fs = await fetch( file )
+                    this.insertAdjacentHTML( 'afterend', await fs.text() )
+                }
+            }, { extends: 'input' } )
+            </script>
+
+            <input type="text" is="data-list-1" id="startInput" source="static\roads.html" list="roads" multiple>
+
+
+            Finish:
+
+            <script>
+                customElements.define( 'data-list-2', class extends HTMLInputElement {
+                static get observedAttributes() { return [ 'source' ] }
+                async attributeChangedCallback( name, old, file ) {
+                    let fs = await fetch( file )
+                    this.insertAdjacentHTML( 'afterend', await fs.text() )
+                }
+            }, { extends: 'input' } )
+            </script>
+
+            <input type="text" is="data-list-2" id="endInput" source="static\roads.html" list="roads" multiple>
+            <input type="submit" value="Submit">
+
+        </form>
+
+        <div id="map"> 
+            {{ _map|safe }} 
+        </div>
+    </div>
+</body>
+</html>
