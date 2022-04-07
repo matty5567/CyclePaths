@@ -32,7 +32,9 @@ roadWeight = {
 }
 
 
-gdf = gpd.read_parquet('data_with_estimate.pq')
+gdf = gpd.read_parquet('data_with_accidents.pq')
+
+
 
 def cyclingWeight(row):
 
@@ -107,6 +109,7 @@ def googleMapsSucks(startRoad, endRoad):
     graph = nx.from_pandas_edgelist(gdf, 'StartNodeGraded', 'EndNodeGraded', ['weight', 'Length'])
 
 
+    # add long lat to graph nodes
     series1 = gdf[['estimateLat', 'estimateLong', 'StartNodeGraded']].rename(columns={'StartNodeGraded': 'node'})
     series2 = gdf[['estimateLat', 'estimateLong', 'EndNodeGraded']].rename(columns={'EndNodeGraded': 'node'})
 
@@ -118,6 +121,13 @@ def googleMapsSucks(startRoad, endRoad):
     series = series.to_dict(orient='index')
 
     nx.set_node_attributes(graph, series)
+
+
+    # add accident data
+    df = pd.read_csv('accident_data.csv')
+    s = pd.Series(df['casualties_per_aadt'], index = df['id']).fillna(0)
+    s.to_dict()
+    nx.set_node_attributes(graph, s)
 
 
         
@@ -140,6 +150,7 @@ def googleMapsSucks(startRoad, endRoad):
                          highlight_function=highlight)
 
 
+
     
     
     m = folium.Map(location=[51.508273,-0.121259],
@@ -147,6 +158,7 @@ def googleMapsSucks(startRoad, endRoad):
 
 
     end_loc = [graph.nodes()[endNode]['estimateLong'], graph.nodes()[endNode]['estimateLat']]
+
 
     folium.Marker(location=end_loc, popup="Waypoint").add_to(m)
 

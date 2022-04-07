@@ -8,6 +8,9 @@
 
 
 
+
+
+
 </head>
 <body>
     <div id="container">
@@ -16,41 +19,73 @@
             {{ _map|safe }} 
         </div>
 
-            <form id="search" autocomplete="off" onsubmit="return readRoadInput();">
+            <form id="search" class="form-container" autocomplete="off" onsubmit="return readRoadInput();">
 
+
+                
+                <script>
+                    customElements.define( 'data-list-1', class extends HTMLInputElement {
+                    static get observedAttributes() { return [ 'source' ] }
+                    async attributeChangedCallback( name, old, file ) {
+                        let fs = await fetch( file )
+                        this.insertAdjacentHTML( 'afterend', await fs.text() )
+                    }
+                }, { extends: 'input' } )
+                </script>
+
+                <input type="text" is="data-list-1" id="startInput" source="static\roads.html" list="roads" placeholder="Start" multiple>
+
+
+
+                <script>
+                    customElements.define( 'data-list-2', class extends HTMLInputElement {
+                    static get observedAttributes() { return [ 'source' ] }
+                    async attributeChangedCallback( name, old, file ) {
+                        let fs = await fetch( file )
+                        this.insertAdjacentHTML( 'afterend', await fs.text() )
+                    }
+                }, { extends: 'input' } )
+                </script>
+
+                <input type="text" is="data-list-2" id="endInput" source="static\roads.html" list="roads" placeholder="End" multiple>
+
+
+                <div class="slider-container">
+                    <input type="range" min="0" max="90" value="50" class="emoji-slider" id="range"></input> 
+                    <label for="range" class="emoji" id="emoji">🚲</label>
+                    
+                    
+                    
+                </div>
+
+                <input type="submit" value="Find Route">
+
+                <script>
+                    var emoji = document.getElementById('emoji');
+                    var sliderValue = document.getElementById('range');
+
+                    sliderValue.oninput = function(){
+                    var value = this.value;
+                    if(value <=30)
+                    {
+                        emoji.innerHTML = '🐌';
+                    }
+                        
+                    else if(value <=60)
+                    {
+                        emoji.innerHTML = '🚲';
+                    }
+                        
+                    else
+                    {
+                        emoji.innerHTML = '🚑';
+                    }  
+                    
+                    }
+                </script>
+            
 
             
-            <script>
-                customElements.define( 'data-list-1', class extends HTMLInputElement {
-                static get observedAttributes() { return [ 'source' ] }
-                async attributeChangedCallback( name, old, file ) {
-                    let fs = await fetch( file )
-                    this.insertAdjacentHTML( 'afterend', await fs.text() )
-                }
-            }, { extends: 'input' } )
-            </script>
-
-            <input type="text" is="data-list-1" id="startInput" source="static\roads.html" list="roads" placeholder="Start" multiple>
-
-
-
-            <script>
-                customElements.define( 'data-list-2', class extends HTMLInputElement {
-                static get observedAttributes() { return [ 'source' ] }
-                async attributeChangedCallback( name, old, file ) {
-                    let fs = await fetch( file )
-                    this.insertAdjacentHTML( 'afterend', await fs.text() )
-                }
-            }, { extends: 'input' } )
-            </script>
-
-            <input type="text" is="data-list-2" id="endInput" source="static\roads.html" list="roads" placeholder="End" multiple>
-
-            <div class="slidecontainer" id="slider">
-                <input type="range" min="1" max="100" value="50" class="slider" id="dangerAversion">
-            </div>
-
-            <input type="submit" value="Find Route">
 
             </form>
         
