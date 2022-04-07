@@ -123,10 +123,10 @@ def googleMapsSucks(startRoad, endRoad):
 
 
     # add accident data
-    df = pd.read_csv('accident_data.csv')
-    s = pd.Series(df['casualties_per_aadt'], index = df['id']).fillna(0)
-    s.to_dict()
-    nx.set_node_attributes(graph, s)
+    # df = pd.read_csv('accident_data.csv')
+    # s = pd.Series(df['casualties_per_aadt'], index = df['id']).fillna(0)
+    # s.to_dict()
+    # nx.set_node_attributes(graph, s)
 
 
         
