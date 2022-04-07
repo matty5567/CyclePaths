@@ -32,9 +32,8 @@ roadWeight = {
 }
 
 
-gdf = gpd.read_parquet('data_with_accidents.pq')
-
-
+os.system('gsutil cp gs://os-road-data-hackathon/data_with_estimate.pq .')
+gdf = gpd.read_parquet('data_with_estimate.pq')
 
 def cyclingWeight(row):
 
