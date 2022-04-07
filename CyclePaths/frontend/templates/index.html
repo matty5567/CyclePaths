@@ -12,11 +12,16 @@
 <body>
     <div id="container">
 
+        <div id="map"> 
+            {{ _map|safe }} 
+        </div>
 
-                
-        <form id="search" autocomplete="off" onsubmit="return readRoadInput();">
+
+
+        <div id = "top bar">
+
+            <form id="search" autocomplete="off" onsubmit="return readRoadInput();">
         
-            Start:
             
             <script>
                 customElements.define( 'data-list-1', class extends HTMLInputElement {
@@ -28,10 +33,9 @@
             }, { extends: 'input' } )
             </script>
 
-            <input type="text" is="data-list-1" id="startInput" source="static\roads.html" list="roads" multiple>
+            <input type="text" is="data-list-1" id="startInput" source="static\roads.html" list="roads" placeholder="Start" multiple>
 
 
-            Finish:
 
             <script>
                 customElements.define( 'data-list-2', class extends HTMLInputElement {
@@ -43,14 +47,13 @@
             }, { extends: 'input' } )
             </script>
 
-            <input type="text" is="data-list-2" id="endInput" source="static\roads.html" list="roads" multiple>
-            <input type="submit" value="Submit">
+            <input type="text" is="data-list-2" id="endInput" source="static\roads.html" list="roads" placeholder="End" multiple>
+            <input type="submit" value="Find Route">
 
-        </form>
-
-        <div id="map"> 
-            {{ _map|safe }} 
+            </form>
         </div>
+        
     </div>
+
 </body>
 </html>
