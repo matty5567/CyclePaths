@@ -16,12 +16,9 @@
             {{ _map|safe }} 
         </div>
 
-
-
-        <div id = "top bar">
-
             <form id="search" autocomplete="off" onsubmit="return readRoadInput();">
-        
+
+
             
             <script>
                 customElements.define( 'data-list-1', class extends HTMLInputElement {
@@ -48,10 +45,14 @@
             </script>
 
             <input type="text" is="data-list-2" id="endInput" source="static\roads.html" list="roads" placeholder="End" multiple>
+
+            <div class="slidecontainer" id="slider">
+                <input type="range" min="1" max="100" value="50" class="slider" id="dangerAversion">
+            </div>
+
             <input type="submit" value="Find Route">
 
             </form>
-        </div>
         
     </div>
 

@@ -10,6 +10,7 @@ import argparse
 import webbrowser
 import os
 import sys
+from functools import cache
 
 
 OUTPUT_FILE = 'output_map.html'
@@ -31,26 +32,24 @@ roadWeight = {
 }
 
 
-def loadData(loc='data.pq'):
-    gdf = gpd.read_parquet(loc)
+gdf = gpd.read_parquet('data_with_estimate.pq')
 
-    def cyclingWeight(row):
+def cyclingWeight(row):
 
-        weight = 0
-        weight += roadWeight[row['RouteHierarchy']]
-        weight += row['Length'] / 1000
-        weight += row['ElevationGainInDir'] / 10
-        weight += row['ElevationGainInOppDir'] / 100
+    weight = 0
+    weight += roadWeight[row['RouteHierarchy']]
+    weight += row['Length'] / 1000
+    weight += row['ElevationGainInDir'] / 10
+    weight += row['ElevationGainInOppDir'] / 100
 
-        return weight
+    return weight
 
-    gdf['weight'] = gdf.apply(cyclingWeight, axis=1)
-
-    return gdf
+gdf['weight'] = gdf.apply(cyclingWeight, axis=1)
 
 
 
 
+@cache
 def googleMapsSucks(startRoad, endRoad):
 
     def roadlink(feature):
@@ -78,9 +77,16 @@ def googleMapsSucks(startRoad, endRoad):
                 'color': '#FF1F5B',
                 'weight': 9,
                 'fillOpacity':.3}
-        
 
-    gdf = loadData()
+    def a_star_heuristic(a, b):
+        a_lat  = graph.nodes()[a]['estimateLat']
+        a_long = graph.nodes()[a]['estimateLong']
+
+        b_lat  = graph.nodes()[b]['estimateLat']
+        b_long = graph.nodes()[b]['estimateLong']
+
+        return ((a_lat - b_lat)**2 + (a_long - b_long)**2)
+        
 
     print("called with: ", startRoad, endRoad, file=sys.stderr)
 
@@ -96,15 +102,27 @@ def googleMapsSucks(startRoad, endRoad):
     else:
         print('endpoints found, calculating route ....')
 
-    
-
 
 
     graph = nx.from_pandas_edgelist(gdf, 'StartNodeGraded', 'EndNodeGraded', ['weight', 'Length'])
 
+
+    series1 = gdf[['estimateLat', 'estimateLong', 'StartNodeGraded']].rename(columns={'StartNodeGraded': 'node'})
+    series2 = gdf[['estimateLat', 'estimateLong', 'EndNodeGraded']].rename(columns={'EndNodeGraded': 'node'})
+
+    series = pd.concat((series1, series2), axis=0)
+
+    series = series.drop_duplicates('node')
+    series = series.set_index('node')
+
+    series = series.to_dict(orient='index')
+
+    nx.set_node_attributes(graph, series)
+
+
         
-    dijkstraLengthNodes = nx.astar_path(graph, startNode, endNode, weight='Length')
-    dijkstraWeightNodes = nx.astar_path(graph, startNode, endNode, weight='weight')
+    dijkstraLengthNodes = nx.astar_path(graph, startNode, endNode, heuristic=a_star_heuristic, weight='Length')
+    dijkstraWeightNodes = nx.astar_path(graph, startNode, endNode, heuristic=a_star_heuristic, weight='weight')
 
     gdf['dijkstraLengthMask'] = gdf['StartNodeGraded'].isin(dijkstraLengthNodes) & gdf['EndNodeGraded'].isin(dijkstraLengthNodes)
     gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(dijkstraWeightNodes) & gdf['EndNodeGraded'].isin(dijkstraWeightNodes)
@@ -121,30 +139,27 @@ def googleMapsSucks(startRoad, endRoad):
                          style_function=dijkstraLowestLength,
                          highlight_function=highlight)
 
-    
-    gdf['dijkstraLengthMask'] = gdf['StartNodeGraded'].isin(dijkstraLengthNodes) & gdf['EndNodeGraded'].isin(dijkstraLengthNodes)
-    gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(dijkstraWeightNodes) & gdf['EndNodeGraded'].isin(dijkstraWeightNodes)
 
     
     
     m = folium.Map(location=[51.508273,-0.121259],
-               min_zoom=7,
-               max_zoom=16)
+               min_zoom=12, max_zoom=16)
+
+
+    end_loc = [graph.nodes()[endNode]['estimateLong'], graph.nodes()[endNode]['estimateLat']]
+
+    folium.Marker(location=end_loc, popup="Waypoint").add_to(m)
+
 
     
     dijkstraLengthOverlay.add_to(m)
     dijkstraWeightOverlay.add_to(m)
 
-    total_bbox = [[gdf.total_bounds[1], gdf.total_bounds[0]], [gdf.total_bounds[3], gdf.total_bounds[2]]]
 
-    m.fit_bounds(total_bbox)
+    m.fit_bounds(graph.nodes()[startNode]['estimateLat'], graph.nodes()[startNode]['estimateLong'], graph.nodes()[endNode]['estimateLat'], graph.nodes()[endNode]['estimateLong'])
 
     return m
     
-    # print(f'saving route from {startRoad} to {endRoad} to {OUTPUT_FILE}')
-    # m.save(OUTPUT_FILE)
-    # webbrowser.open('file://' + os.path.join(os.getcwd(), OUTPUT_FILE))
-
 
 
 def main():
