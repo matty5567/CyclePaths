@@ -13,7 +13,9 @@ import pandas as pd
 import altair as alt
 
 os.system('gsutil cp gs://os-road-data-hackathon/data_with_estimate.pq .')
+
 gdf = gpd.read_parquet('data_with_estimate.pq')
+
 
 ACCIDENT_DIST_THRESH = 2 / 111.139
 accidents = pd.read_csv('CyclePaths/data/traffic_full.csv')
@@ -85,18 +87,11 @@ def googleMapsSucks(startRoad, endRoad, dangerLevel, showAccidents):
         return {'weight':9,
                 'color':'#AF58BA'}
 
-    def dijkstraLowestWeight(feature):
+    def style(feature):
 
         return {'fillColor': '#00CD6C',
-                'color': '#00CD6C',
+                'color': '#4285F4',
                 'weight': 5,
-                'fillOpacity':.3}
-
-    def dijkstraLowestLength(feature):
-
-        return {'fillColor': '#FF1F5B',
-                'color': '#FF1F5B',
-                'weight': 9,
                 'fillOpacity':.3}
 
     def a_star_heuristic(a, b):
@@ -141,34 +136,34 @@ def googleMapsSucks(startRoad, endRoad, dangerLevel, showAccidents):
     if dangerLevel > 6:
         
         nodes, elevations = astar_path(graph, startNode, endNode, weight='Length')
-        gdf['dijkstraLengthMask'] = gdf['StartNodeGraded'].isin(nodes) & gdf['EndNodeGraded'].isin(nodes)
+        gdf['a_star_mask'] = gdf['StartNodeGraded'].isin(nodes) & gdf['EndNodeGraded'].isin(nodes)
 
-        dijkstraLengthOverlay = folium.GeoJson(gdf[gdf['dijkstraLengthMask']==True],
+        aStarOverlay = folium.GeoJson(gdf[gdf['a_star_mask']==True],
                          name='dijkstraLength',
-                         style_function=dijkstraLowestLength,
+                         style_function=style,
                          highlight_function=highlight)
 
-        dijkstraLengthOverlay.add_to(m)
+        aStarOverlay.add_to(m)
 
-        total_journey_length = gdf[gdf['dijkstraLengthMask']==True]['Length'].sum() / 1000
+        total_journey_length = gdf[gdf['a_star_mask']==True]['Length'].sum() / 1000
 
     else:
 
         nodes, elevations = astar_path(graph, startNode, endNode, weight='weight')
 
-        gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(nodes) & gdf['EndNodeGraded'].isin(nodes)
+        gdf['a_star_mask'] = gdf['StartNodeGraded'].isin(nodes) & gdf['EndNodeGraded'].isin(nodes)
 
-        journeyNodes = gdf[gdf['dijkstraWeightMask']==True]
+        journeyNodes = gdf[gdf['a_star_mask']==True]
 
-        dijkstraWeightOverlay = folium.GeoJson(journeyNodes,
+        aStarOverlay = folium.GeoJson(journeyNodes,
                             name='dijkstraWeight',
-                            style_function=dijkstraLowestWeight,
+                            style_function=style,
                             highlight_function=highlight)
 
     
-        dijkstraWeightOverlay.add_to(m)
+        aStarOverlay.add_to(m)
 
-        total_journey_length = gdf[gdf['dijkstraWeightMask']==True]['Length'].sum() / 1000
+        total_journey_length = gdf[gdf['a_star_mask']==True]['Length'].sum() / 1000
 
 
     x_label = f'distance: {round(total_journey_length, 2)}km'
@@ -182,7 +177,6 @@ def googleMapsSucks(startRoad, endRoad, dangerLevel, showAccidents):
 
     chart = alt.Chart(elevations_df).mark_line().encode(x=alt.X('x', axis=alt.Axis(title=x_label)),y=alt.X('Elavation', axis=alt.Axis(title='Elavation (m)') , scale=alt.Scale(domain=[-60, 60])))
 
-    chart.save('chart.html')
     chart = chart.to_json()
 
 
