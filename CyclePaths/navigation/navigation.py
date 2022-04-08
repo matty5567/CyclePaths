@@ -1,3 +1,4 @@
+
 import pandas as pd
 import geopandas as gpd
 import networkx as nx
@@ -16,7 +17,6 @@ gdf = gpd.read_parquet('data_with_estimate.pq')
 
 ACCIDENT_DIST_THRESH = 2 / 111.139
 accidents = pd.read_csv('CyclePaths/data/traffic_full.csv')
-
 
 @cache
 def googleMapsSucks(startRoad, endRoad, dangerLevel, showAccidents):
