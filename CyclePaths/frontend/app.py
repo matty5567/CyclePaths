@@ -9,10 +9,9 @@ app = Flask(__name__)
 def find_route():
     start = request.args.get('start')
     end = request.args.get('end')
-    dangerLevel = request.args.get('dangerLevel')
-    print(dangerLevel)
-    map = googleMapsSucks(start, end)
-    return render_template('index.html', _map = map._repr_html_())
+    dangerLevel = int(request.args.get('dangerLevel'))
+    map = googleMapsSucks(start, end, dangerLevel)
+    return render_template('index.html', _map = map._repr_html_(), start=start, end=end, dangerLevel=dangerLevel)
 
 
 @app.route("/")

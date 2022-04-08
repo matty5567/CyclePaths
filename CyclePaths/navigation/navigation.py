@@ -1,64 +1,47 @@
+from msilib import schema
+from tracemalloc import start
 import pandas as pd
 import geopandas as gpd
 import networkx as nx
-from datetime import datetime
-import matplotlib.pyplot as plt
-from os_paw.wfs_api import WFS_API
 import folium
-from folium.plugins import FloatImage
+from flask import redirect
 import argparse
-import webbrowser
 import os
 import sys
 from functools import cache
-
-
-OUTPUT_FILE = 'output_map.html'
-
-
-
-roadWeight = {
-    'Restricted Local Access Road': 0,
-    'Minor Road': 10,
-    'Local Road': 20,
-    'A Road': 100,
-    'A Road Primary': 150,
-    'B Road': 100,
-    'B Road Primary': 150,
-    'Restricted Secondary Access Road': 0,
-    'Local Access Road': 0,
-    'Secondary Access Road': 0,
-    'Motorway': 1000
-}
-
+from CyclePaths.navigation.a_star import astar_path
+import pandas as pd
+import altair as alt
 
 os.system('gsutil cp gs://os-road-data-hackathon/data_with_estimate.pq .')
 gdf = gpd.read_parquet('data_with_estimate.pq')
 
-def cyclingWeight(row):
-
-    weight = 0
-    weight += roadWeight[row['RouteHierarchy']]
-    weight += row['Length'] / 1000
-    weight += row['ElevationGainInDir'] / 10
-    weight += row['ElevationGainInOppDir'] / 100
-
-    return weight
-
-gdf['weight'] = gdf.apply(cyclingWeight, axis=1)
-
-
 
 
 @cache
-def googleMapsSucks(startRoad, endRoad):
+def googleMapsSucks(startRoad, endRoad, dangerLevel):
 
-    def roadlink(feature):
+    def cyclingWeight(row):
 
-        return {'fillColor': '#009ADE',
-                'color': '#009ADE',
-                'weight': 2,
-                'fillOpacity':.3}
+        roadWeight = {
+            'Restricted Local Access Road': 0,
+            'Minor Road': 1,
+            'Local Road': 2,
+            'A Road': 100,
+            'A Road Primary': 150,
+            'B Road': 100,
+            'B Road Primary': 150,
+            'Restricted Secondary Access Road': 0,
+            'Local Access Road': 0,
+            'Secondary Access Road': 0,
+            'Motorway': 1000
+        }
+
+        weight = 0
+        weight += roadWeight[row['RouteHierarchy']] * (10/dangerLevel)
+        weight += row['Length'] * (1/(10-dangerLevel))
+        return weight
+
 
     def highlight(feature):
 
@@ -87,28 +70,21 @@ def googleMapsSucks(startRoad, endRoad):
         b_long = graph.nodes()[b]['estimateLong']
 
         return ((a_lat - b_lat)**2 + (a_long - b_long)**2)
-        
+
 
     print("called with: ", startRoad, endRoad, file=sys.stderr)
 
     startNode = gdf[gdf['RoadName1'] == startRoad][['StartNodeGraded']].values[0].item()
     endNode   = gdf[gdf['RoadName1'] == endRoad][['EndNodeGraded']].values[0].item()
 
-    if not startNode:
-        raise Exception('start not found')
-
-    elif not startNode:
-        raise Exception('end not found')
-
-    else:
-        print('endpoints found, calculating route ....')
+    if not startNode or not endNode:
+        return redirect("/", code=302)
 
 
+    gdf['weight'] = gdf.apply(cyclingWeight, axis=1)
 
-    graph = nx.from_pandas_edgelist(gdf, 'StartNodeGraded', 'EndNodeGraded', ['weight', 'Length'])
+    graph = nx.from_pandas_edgelist(gdf, 'StartNodeGraded', 'EndNodeGraded', ['weight', 'Length', 'ElevationGainInDir', 'ElevationGainInOppDir'])
 
-
-    # add long lat to graph nodes
     series1 = gdf[['estimateLat', 'estimateLong', 'StartNodeGraded']].rename(columns={'StartNodeGraded': 'node'})
     series2 = gdf[['estimateLat', 'estimateLong', 'EndNodeGraded']].rename(columns={'EndNodeGraded': 'node'})
 
@@ -122,49 +98,59 @@ def googleMapsSucks(startRoad, endRoad):
     nx.set_node_attributes(graph, series)
 
 
-    # add accident data
-    # df = pd.read_csv('accident_data.csv')
-    # s = pd.Series(df['casualties_per_aadt'], index = df['id']).fillna(0)
-    # s.to_dict()
-    # nx.set_node_attributes(graph, s)
+    m = folium.Map(location=[51.508273,-0.121259],
+               min_zoom=12, max_zoom=16)
 
-
+    if dangerLevel > 6:
         
-    dijkstraLengthNodes = nx.astar_path(graph, startNode, endNode, heuristic=a_star_heuristic, weight='Length')
-    dijkstraWeightNodes = nx.astar_path(graph, startNode, endNode, heuristic=a_star_heuristic, weight='weight')
+        dijkstraLengthNodes, elevations = astar_path(graph, startNode, endNode, weight='Length')
+        gdf['dijkstraLengthMask'] = gdf['StartNodeGraded'].isin(dijkstraLengthNodes) & gdf['EndNodeGraded'].isin(dijkstraLengthNodes)
 
-    gdf['dijkstraLengthMask'] = gdf['StartNodeGraded'].isin(dijkstraLengthNodes) & gdf['EndNodeGraded'].isin(dijkstraLengthNodes)
-    gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(dijkstraWeightNodes) & gdf['EndNodeGraded'].isin(dijkstraWeightNodes)
-
-
-    
-    dijkstraWeightOverlay = folium.GeoJson(gdf[gdf['dijkstraWeightMask']==True],
-                         name='dijkstraWeight',
-                         style_function=dijkstraLowestWeight,
-                         highlight_function=highlight)
-
-    dijkstraLengthOverlay = folium.GeoJson(gdf[gdf['dijkstraLengthMask']==True],
+        dijkstraLengthOverlay = folium.GeoJson(gdf[gdf['dijkstraLengthMask']==True],
                          name='dijkstraLength',
                          style_function=dijkstraLowestLength,
                          highlight_function=highlight)
 
+        dijkstraLengthOverlay.add_to(m)
 
+        total_journey_length = gdf[gdf['dijkstraLengthMask']==True]['Length'].sum() / 1000
+
+    else:
+
+        dijkstraWeightNodes, elevations = astar_path(graph, startNode, endNode, weight='weight')
+
+        gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(dijkstraWeightNodes) & gdf['EndNodeGraded'].isin(dijkstraWeightNodes)
+
+        journeyNodes = gdf[gdf['dijkstraWeightMask']==True]
+
+        dijkstraWeightOverlay = folium.GeoJson(journeyNodes,
+                            name='dijkstraWeight',
+                            style_function=dijkstraLowestWeight,
+                            highlight_function=highlight)
 
     
-    
-    m = folium.Map(location=[51.508273,-0.121259],
-               min_zoom=12, max_zoom=16)
+        dijkstraWeightOverlay.add_to(m)
 
+        total_journey_length = gdf[gdf['dijkstraWeightMask']==True]['Length'].sum() / 1000
+
+
+    x_label = f'distance: {round(total_journey_length, 2)}km'
+
+    elevations_df = pd.DataFrame(elevations, columns=['Elavation'])
+    elevations_df['x'] = elevations_df.index
+
+    print(elevations_df)
+
+
+    chart = alt.Chart(elevations_df).mark_line().encode(x=alt.X('x', axis=alt.Axis(title=x_label)),y='Elavation')
+
+    chart.save('chart.html')
+    chart = chart.to_json()
 
     end_loc = [graph.nodes()[endNode]['estimateLong'], graph.nodes()[endNode]['estimateLat']]
 
 
-    folium.Marker(location=end_loc, popup="Waypoint").add_to(m)
-
-
-    
-    dijkstraLengthOverlay.add_to(m)
-    dijkstraWeightOverlay.add_to(m)
+    folium.Marker(location=end_loc, popup=folium.Popup(max_width=450).add_child(folium.VegaLite(chart, width=450, height=250))).add_to(m)
 
 
     m.fit_bounds(graph.nodes()[startNode]['estimateLat'], graph.nodes()[startNode]['estimateLong'], graph.nodes()[endNode]['estimateLat'], graph.nodes()[endNode]['estimateLong'])
