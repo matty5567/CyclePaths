@@ -110,3 +110,21 @@
   cursor: pointer;
 }
 
+.check-container{
+  display: inline-block;
+  width: 160px;
+  height: 40px;
+  margin: 10px 0;
+  padding-top: 2px;
+  background-color: #fff;
+  border-radius: 6px;
+  vertical-align: top;*/
+}
+
+.check-input{
+  margin: 3px 0;
+  
+}
+
+
+

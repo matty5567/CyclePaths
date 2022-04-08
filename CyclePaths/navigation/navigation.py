@@ -1,5 +1,3 @@
-from msilib import schema
-from tracemalloc import start
 import pandas as pd
 import geopandas as gpd
 import networkx as nx
@@ -16,10 +14,49 @@ import altair as alt
 os.system('gsutil cp gs://os-road-data-hackathon/data_with_estimate.pq .')
 gdf = gpd.read_parquet('data_with_estimate.pq')
 
+ACCIDENT_DIST_THRESH = 2 / 111.139
+accidents = pd.read_csv('CyclePaths/data/traffic_full.csv')
 
 
 @cache
-def googleMapsSucks(startRoad, endRoad, dangerLevel):
+def googleMapsSucks(startRoad, endRoad, dangerLevel, showAccidents):
+
+    def calc_line(a_long, a_lat, b_long, b_lat):
+        m = (b_long - a_long) / (b_lat - a_lat)
+        c = a_long - m * a_lat
+
+        return m, c
+
+
+    def plotDot(map, point):
+
+        folium.CircleMarker(location=[point.LAT, point.LON],
+                            radius=1,
+                            weight=1,
+                            color='#FF0000').add_to(map)
+
+
+
+    def plotLocalPoints(map, a_long, a_lat, b_long, b_lat):
+
+        m, c = calc_line(a_long, a_lat, b_long, b_lat)
+
+        print(m, c)
+        
+        accidents['c'] = accidents['LAT'] - accidents['LON'] * m
+
+        print(accidents['c'].values[:10])
+
+
+        points = accidents[accidents['c'].between(c - ACCIDENT_DIST_THRESH, c + ACCIDENT_DIST_THRESH)]
+        points = points[points['LON'].between(min(a_lat, b_lat), max(a_lat, b_lat))]
+        points = points.sample(n=min(5000, len(points)))
+
+        print(len(points))
+        
+        points.apply(lambda row: plotDot(map, row), axis=1)
+
+
 
     def cyclingWeight(row):
 
@@ -103,8 +140,8 @@ def googleMapsSucks(startRoad, endRoad, dangerLevel):
 
     if dangerLevel > 6:
         
-        dijkstraLengthNodes, elevations = astar_path(graph, startNode, endNode, weight='Length')
-        gdf['dijkstraLengthMask'] = gdf['StartNodeGraded'].isin(dijkstraLengthNodes) & gdf['EndNodeGraded'].isin(dijkstraLengthNodes)
+        nodes, elevations = astar_path(graph, startNode, endNode, weight='Length')
+        gdf['dijkstraLengthMask'] = gdf['StartNodeGraded'].isin(nodes) & gdf['EndNodeGraded'].isin(nodes)
 
         dijkstraLengthOverlay = folium.GeoJson(gdf[gdf['dijkstraLengthMask']==True],
                          name='dijkstraLength',
@@ -117,9 +154,9 @@ def googleMapsSucks(startRoad, endRoad, dangerLevel):
 
     else:
 
-        dijkstraWeightNodes, elevations = astar_path(graph, startNode, endNode, weight='weight')
+        nodes, elevations = astar_path(graph, startNode, endNode, weight='weight')
 
-        gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(dijkstraWeightNodes) & gdf['EndNodeGraded'].isin(dijkstraWeightNodes)
+        gdf['dijkstraWeightMask'] = gdf['StartNodeGraded'].isin(nodes) & gdf['EndNodeGraded'].isin(nodes)
 
         journeyNodes = gdf[gdf['dijkstraWeightMask']==True]
 
@@ -139,18 +176,22 @@ def googleMapsSucks(startRoad, endRoad, dangerLevel):
     elevations_df = pd.DataFrame(elevations, columns=['Elavation'])
     elevations_df['x'] = elevations_df.index
 
-    print(elevations_df)
+    if showAccidents:
+        plotLocalPoints(m, graph.nodes()[startNode]['estimateLong'], graph.nodes()[startNode]['estimateLat'], graph.nodes()[endNode]['estimateLong'], graph.nodes()[endNode]['estimateLat'])
 
 
-    chart = alt.Chart(elevations_df).mark_line().encode(x=alt.X('x', axis=alt.Axis(title=x_label)),y='Elavation')
+    chart = alt.Chart(elevations_df).mark_line().encode(x=alt.X('x', axis=alt.Axis(title=x_label)),y=alt.X('Elavation', axis=alt.Axis(title='Elavation (m)') , scale=alt.Scale(domain=[-60, 60])))
 
     chart.save('chart.html')
     chart = chart.to_json()
+
+
 
     end_loc = [graph.nodes()[endNode]['estimateLong'], graph.nodes()[endNode]['estimateLat']]
 
 
     folium.Marker(location=end_loc, popup=folium.Popup(max_width=450).add_child(folium.VegaLite(chart, width=450, height=250))).add_to(m)
+
 
 
     m.fit_bounds(graph.nodes()[startNode]['estimateLat'], graph.nodes()[startNode]['estimateLong'], graph.nodes()[endNode]['estimateLat'], graph.nodes()[endNode]['estimateLong'])
