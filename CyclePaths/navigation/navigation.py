@@ -1,6 +1,3 @@
-from msilib import schema
-from tracemalloc import start
-import pandas as pd
 import geopandas as gpd
 import networkx as nx
 import folium
@@ -15,7 +12,6 @@ import altair as alt
 
 os.system('gsutil cp gs://os-road-data-hackathon/data_with_estimate.pq .')
 gdf = gpd.read_parquet('data_with_estimate.pq')
-
 
 
 @cache
