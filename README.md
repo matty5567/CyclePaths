@@ -1,5 +1,3 @@
-# CyclePassage
+# CyclePaths
 
-## Run Flask App Locally:
-
-python CyclePaths/frontend/app.py
+Finds the fastest and safest cycling routes
